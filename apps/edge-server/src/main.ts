@@ -1,3 +1,5 @@
+import '@nestjs/platform-express'
+
 import { EdgeProtocol } from '@enver/edge-protocol'
 import { ConsoleLogger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

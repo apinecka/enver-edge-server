@@ -101,17 +101,18 @@ export class BackupsService {
 		return Promise.all(
 			entries.filter((e) => e.isFile() && BackupsTypes.FILE_NAME_REGEX.test(e.name)).map(async (e) => {
 				const stat = await fs.lstat(path.join(dirPath, e.name))
-				return { fileName: e.name, sizeBytes: stat.size, createdAt: stat.birthtime.toISOString() }
+				return { fileName: e.name, sizeBytes: stat.size, createdAt: (stat.birthtimeMs > 0 ? stat.birthtime : stat.mtime).toISOString() }
 			}),
 		)
 	}
 
 	/** Keeps only the `retentionCount` newest dumps in the dir, deleting the rest - assumes the dir
-	 *  is dedicated to one service's backups (one directory per Postgres service). */
+	 *  is dedicated to one service's backups (one directory per Postgres service). Newest by the
+	 *  timestamp in the name, since many filesystems report no birth time. */
 	private async pruneRetained(dirPath: string, retentionCount: number): Promise<void> {
 		if (!Number.isInteger(retentionCount) || retentionCount < 1) return
 		const files = await this.listFiles(dirPath)
-		const excess = files.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(retentionCount)
+		const excess = files.sort((a, b) => b.fileName.localeCompare(a.fileName)).slice(retentionCount)
 		await Promise.all(excess.map((f) => fs.unlink(path.join(dirPath, f.fileName)).catch(() => { /* already gone */ })))
 	}
 
