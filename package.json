@@ -1,0 +1,56 @@
+{
+  "name": "enver-edge-server",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The Enver edge server agent: runs the containers Enver deploys, through Docker or Kubernetes, on your own machine.",
+  "license": "Apache-2.0",
+  "homepage": "https://enver.apinecka.com/about/",
+  "scripts": {
+    "build": "nest build edge-server",
+    "start:dev": "nest start --watch edge-server",
+    "lint": "eslint \"{apps,libs}/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "jest",
+    "package:deb": "bash scripts/package-deb.sh",
+    "package:macos": "bash scripts/package-macos.sh"
+  },
+  "engines": {
+    "npm": ">=11.6",
+    "node": ">=24.22.1"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "1.4.0",
+    "@nestjs/common": "11.2.6",
+    "@nestjs/core": "11.2.6",
+    "dockerode": "5.0.0",
+    "openpgp": "6.3.2",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "ws": "8.21.2"
+  },
+  "devDependencies": {
+    "@apinecka/eslint-config-be": "1.0.0",
+    "@nestjs/cli": "11.0.24",
+    "@types/dockerode": "4.0.1",
+    "@types/jest": "30.0.0",
+    "@types/node": "22.19.15",
+    "@types/ws": "8.18.1",
+    "@typescript-eslint/eslint-plugin": "8.57.0",
+    "@typescript-eslint/parser": "8.57.0",
+    "eslint": "9.39.4",
+    "eslint-plugin-simple-import-sort": "12.1.1",
+    "eslint-plugin-unused-imports": "4.1.4",
+    "generate-package-json-webpack-plugin": "2.6.0",
+    "jest": "30.5.2",
+    "ts-jest": "29.4.15",
+    "ts-loader": "9.6.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.57.0",
+    "webpack": "5.106.2"
+  },
+  "overrides": {
+    "@kubernetes/client-node": {
+      "js-yaml": "^4.3.2"
+    }
+  }
+}

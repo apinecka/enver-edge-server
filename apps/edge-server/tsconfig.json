@@ -1,0 +1,10 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"declaration": false,
+		"rootDir": "../../",
+		"outDir": "../../dist/apps/edge-server"
+	},
+	"include": ["src/**/*", "../../libs/edge-protocol/src/**/*", "../../libs/domains/src/docker/**/*", "../../libs/domains/src/kubernetes/**/*"],
+	"exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}

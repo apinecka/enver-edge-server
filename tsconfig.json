@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": true,
+    "paths": {
+      "@enver/domains/*": ["libs/domains/src/*"],
+      "@enver/edge-protocol": ["libs/edge-protocol/src/index"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}

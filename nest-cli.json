@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "projects": {
+    "edge-server": {
+      "type": "application",
+      "root": "apps/edge-server",
+      "entryFile": "main",
+      "sourceRoot": "apps/edge-server/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/edge-server/tsconfig.json",
+        "webpack": true,
+        "webpackConfigPath": "apps/edge-server/webpack.config.mjs"
+      }
+    }
+  }
+}
