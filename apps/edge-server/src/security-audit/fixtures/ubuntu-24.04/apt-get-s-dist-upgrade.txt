@@ -1,0 +1,17 @@
+NOTE: This is only a simulation!
+      apt-get needs root privileges for real execution.
+      Keep also in mind that locking is deactivated,
+      so don't depend on the relevance to the real current situation!
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+The following upgrades have been deferred due to phasing:
+  ubuntu-drivers-common
+The following packages will be upgraded:
+  libssh-4 openssh-client
+2 upgraded, 0 newly installed, 0 to remove and 1 not upgraded.
+Inst libssh-4 [0.10.6-2build2] (0.10.6-2ubuntu0.1 Ubuntu:24.04/noble-updates, Ubuntu:24.04/noble-security [amd64])
+Inst openssh-client [1:9.6p1-3ubuntu13.13] (1:9.6p1-3ubuntu13.14 Ubuntu:24.04/noble-updates [amd64])
+Conf libssh-4 (0.10.6-2ubuntu0.1 Ubuntu:24.04/noble-updates, Ubuntu:24.04/noble-security [amd64])
+Conf openssh-client (1:9.6p1-3ubuntu13.14 Ubuntu:24.04/noble-updates [amd64])

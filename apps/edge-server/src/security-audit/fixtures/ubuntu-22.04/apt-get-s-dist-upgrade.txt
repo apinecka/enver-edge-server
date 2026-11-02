@@ -1,0 +1,21 @@
+NOTE: This is only a simulation!
+      apt-get needs root privileges for real execution.
+      Keep also in mind that locking is deactivated,
+      so don't depend on the relevance to the real current situation!
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+The following packages will be upgraded:
+  libc-bin libc6 libpython3.10 python3-pil vim
+5 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Inst libc6 [2.35-0ubuntu3.10] (2.35-0ubuntu3.11 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [amd64])
+Inst libc-bin [2.35-0ubuntu3.10] (2.35-0ubuntu3.11 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [amd64])
+Inst libpython3.10 [3.10.12-1~22.04.10] (3.10.12-1~22.04.11 Ubuntu:22.04/jammy-updates [amd64])
+Inst python3-pil [9.0.1-1ubuntu0.3] (9.0.1-1ubuntu0.3+esm2 UbuntuESMApps:22.04/jammy-apps-security [amd64])
+Inst vim [2:8.2.3995-1ubuntu2.24] (2:8.2.3995-1ubuntu2.24+esm1 UbuntuESMApps:22.04/jammy-apps-security [amd64])
+Conf libc6 (2.35-0ubuntu3.11 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [amd64])
+Conf libc-bin (2.35-0ubuntu3.11 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [amd64])
+Conf libpython3.10 (3.10.12-1~22.04.11 Ubuntu:22.04/jammy-updates [amd64])
+Conf python3-pil (9.0.1-1ubuntu0.3+esm2 UbuntuESMApps:22.04/jammy-apps-security [amd64])
+Conf vim (2:8.2.3995-1ubuntu2.24+esm1 UbuntuESMApps:22.04/jammy-apps-security [amd64])

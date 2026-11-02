@@ -9,6 +9,7 @@ import { AppModule } from './app.module'
 import { HostDirsService } from './host-dirs/host-dirs.service'
 import { InstanceLocator } from './instance-locator'
 import { JobProcessorService } from './job-processor/job-processor.service'
+import { SecurityAuditService } from './security-audit/security-audit.service'
 import { SelfUpdateService } from './self-update/self-update.service'
 import { SelfUpdateTypes } from './self-update/self-update.types'
 import { SettingsClient } from './settings-client'
@@ -62,6 +63,7 @@ async function bootstrap() {
 	const app = await NestFactory.create(AppModule.forRoot(initialSettings, settingsClient, locator), { logger })
 	// Before listen(), which starts the connection: the first jobs already obey these settings.
 	app.get(HostDirsService).configure(initialSettings)
+	app.get(SecurityAuditService).configure(initialSettings)
 	app.get(JobProcessorService).setImageCleanupMode(initialSettings.imageCleanupMode)
 	app.get(SelfUpdateService).setRestartHandler(async () => {
 		await app.close()

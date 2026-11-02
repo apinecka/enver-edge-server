@@ -56,6 +56,8 @@ const mockBackupsService = {
 	handleRestore: jest.fn(),
 }
 
+const mockSecurityAudit = { run: jest.fn() }
+
 // ─── Factories ────────────────────────────────────────────────────────────────
 
 function makeService(): JobProcessorService {
@@ -65,6 +67,7 @@ function makeService(): JobProcessorService {
 		mockBackupsService as never,
 		mockEnvFilesService as never,
 		mockHostDirs as never,
+		mockSecurityAudit as never,
 	)
 }
 
@@ -835,6 +838,18 @@ describe('JobProcessorService', () => {
 			}, send)
 
 			expect(send).toHaveBeenCalledWith({ type: 'logs.response', queryId: 'q-3', lines: [] })
+		})
+	})
+
+	describe('process (security.audit)', () => {
+		it('answers with the audit result under the query id', async () => {
+			mockSecurityAudit.run.mockResolvedValue({ status: 'refused', reason: 'disabled' })
+			const send = jest.fn()
+
+			await service.process({ edgeServerGuid: 'edge-1', type: 'security.audit', payload: { queryId: 'q-4', cursor: null } }, send)
+
+			expect(mockSecurityAudit.run).toHaveBeenCalledWith({ queryId: 'q-4', cursor: null })
+			expect(send).toHaveBeenCalledWith({ type: 'security.audit.response', queryId: 'q-4', result: { status: 'refused', reason: 'disabled' } })
 		})
 	})
 })

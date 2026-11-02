@@ -19,7 +19,8 @@ Enver instance ◀──(HTTPS + WebSocket)──▶ Edge Server ──▶ Docke
 4. The service routes each job to the appropriate backend — **Dockerode** (`deploymentType: docker`) or **@kubernetes/client-node** (`deploymentType: kubernetes`).
 5. It reconnects automatically every 5 seconds if the connection drops, and re-checks settings every 60 seconds so changes made in the UI (Docker socket, Kubernetes connection, ingress class, cert issuer) take effect without a restart. This check is conditional (`ETag`/`If-None-Match`) - the API responds `304 Not Modified` with no body until something actually changes, so the recurring poll is cheap.
 6. `GET /health` returns `{ status: 'ok' }` for external health-checks.
-7. It updates itself: the service runs `launcher.js`, which runs the current version (the installed one or a newer one the agent downloaded into `versions/<v>/`) and rolls back a new version that doesn't come up.
+7. On a `security.audit` job, and only when its settings carry `securityAudit: true`, it reports the host's security state (Debian/Ubuntu only, `src/security-audit`): SSH configuration and logins, pending updates and reboots. It runs as its unprivileged user with fixed read-only commands (`execFile`, no shell, time and output limits); the groups `adm` and `systemd-journal` let it read the logs. Known login sources are kept only as salted hashes in the systemd `StateDirectory` (`$STATE_DIRECTORY`, `/var/lib/enver-edge-server`), and no IP address is sent.
+8. It updates itself: the service runs `launcher.js`, which runs the current version (the installed one or a newer one the agent downloaded into `versions/<v>/`) and rolls back a new version that doesn't come up.
 
 ---
 

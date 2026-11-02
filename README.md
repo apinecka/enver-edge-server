@@ -6,13 +6,14 @@ The agent runs with access to your Docker daemon or cluster, so you should be ab
 
 - **What it does and what it sends:** see [What the agent does and what it needs](https://enver.apinecka.com/about/docs/#edge) in the guide, and [Check what the agent sends](https://enver.apinecka.com/about/docs/#inspect-traffic) to verify it yourself with Wireshark.
 - **Configuration, installation and internals:** [`apps/edge-server/README.md`](apps/edge-server/README.md).
+- **Security audit:** on Debian and Ubuntu the agent can report the host's security state (SSH configuration and logins, pending updates, reboots) without root, through fixed read-only commands run without a shell (`apps/edge-server/src/security-audit`). IP addresses never leave the host; see [Security audit](https://enver.apinecka.com/about/docs/#security-audit) for what it reads and sends, and the groups it needs.
 - **Protocol:** every message between the agent and Enver is typed in [`libs/edge-protocol`](libs/edge-protocol/src/edge-protocol.types.ts).
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `apps/edge-server` | The agent (NestJS): connection, job processing, backups, metrics, self-update, and the launcher the service manager runs |
+| `apps/edge-server` | The agent (NestJS): connection, job processing, backups, metrics, the host security audit, self-update, and the launcher the service manager runs |
 | `libs/domains/src/docker`, `libs/domains/src/kubernetes` | Docker (dockerode) and Kubernetes (server-side apply) drivers |
 | `libs/edge-protocol` | Jobs, messages and settings exchanged with Enver |
 | `scripts` | `.deb` and macOS packaging, bundling the official Node.js runtime |

@@ -83,6 +83,9 @@ if [ "\$1" = remove ] || [ "\$1" = purge ]; then
 	systemctl daemon-reload || true
 	rm -rf /$install_dir/versions
 fi
+if [ "\$1" = purge ]; then
+	rm -rf /var/lib/$SERVICE_NAME
+fi
 EOF
 chmod 755 "$stage/DEBIAN/postrm"
 
@@ -100,8 +103,12 @@ RestartSec=5
 Environment=NODE_ENV=production
 EnvironmentFile=-/etc/enver/edge-server.env
 User=$SERVICE_USER
+# /var/lib/enver-edge-server (\$STATE_DIRECTORY), the agent's own: the security audit keeps the salted
+# hashes of the login sources it has seen there, so addresses never leave the machine.
+StateDirectory=$SERVICE_NAME
+StateDirectoryMode=0700
 # /usr, /boot and /etc stay read-only and /home hidden; the agent writes only versions/ (self-update),
-# its backups directory and a key log, whose location the operator picks.
+# its state directory, its backups directory and a key log, whose location the operator picks.
 NoNewPrivileges=yes
 ProtectSystem=full
 ProtectHome=yes

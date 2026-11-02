@@ -1,0 +1,17 @@
+NOTE: This is only a simulation!
+      apt-get needs root privileges for real execution.
+      Keep also in mind that locking is deactivated,
+      so don't depend on the relevance to the real current situation!
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+The following packages will be upgraded:
+  libssl1.1 openssl sudo
+3 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Inst libssl1.1 [1.1.1f-1ubuntu2.23] (1.1.1f-1ubuntu2.24+esm1 UbuntuESM:20.04/focal-infra-security [amd64])
+Inst openssl [1.1.1f-1ubuntu2.23] (1.1.1f-1ubuntu2.24+esm1 UbuntuESM:20.04/focal-infra-security [amd64])
+Inst sudo [1.8.31-1ubuntu1.5] (1.8.31-1ubuntu1.5+esm1 UbuntuESM:20.04/focal-infra-security, UbuntuESM:20.04/focal-infra-updates [amd64])
+Conf libssl1.1 (1.1.1f-1ubuntu2.24+esm1 UbuntuESM:20.04/focal-infra-security [amd64])
+Conf openssl (1.1.1f-1ubuntu2.24+esm1 UbuntuESM:20.04/focal-infra-security [amd64])
+Conf sudo (1.8.31-1ubuntu1.5+esm1 UbuntuESM:20.04/focal-infra-security, UbuntuESM:20.04/focal-infra-updates [amd64])

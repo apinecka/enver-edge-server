@@ -39,6 +39,12 @@ export const config = {
 
 	/** A service's env file is read from here only, so the server's operator decides which files
 	 *  Enver may hand to a container (see env-files.service.ts). */
+	securityAudit: {
+		/** systemd's `StateDirectory=enver-edge-server` (`/var/lib/enver-edge-server`): the audit keeps
+		 *  the hashes of known login sources there. Absent under a unit from an older package. */
+		stateDir: process.env.STATE_DIRECTORY?.split(':')[0] || null,
+	},
+
 	envFiles: {
 		dir: process.env.ENV_FILES_DIR || '/etc/enver/env-files',
 		maxBytes: 1024 * 1024,

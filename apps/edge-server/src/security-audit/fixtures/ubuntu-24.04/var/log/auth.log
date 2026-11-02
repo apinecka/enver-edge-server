@@ -1,0 +1,30 @@
+2026-10-29T10:00:00.000000+00:00 ubuntu-2404 sshd[600]: Failed password for root from 203.0.113.200 port 1 ssh2
+2026-10-31T10:00:00.000000+00:00 ubuntu-2404 sshd[700]: Server listening on 0.0.0.0 port 22.
+2026-10-31T10:01:00.000000+00:00 ubuntu-2404 sshd[1201]: Failed password for root from 203.0.113.10 port 40000 ssh2
+2026-10-31T10:01:05.000000+00:00 ubuntu-2404 sshd[1201]: message repeated 5 times: [ Failed password for root from 203.0.113.10 port 40000 ssh2]
+2026-10-31T10:01:06.000000+00:00 ubuntu-2404 sshd[1201]: error: maximum authentication attempts exceeded for root from 203.0.113.10 port 40005 ssh2 [preauth]
+2026-10-31T10:01:06.000000+00:00 ubuntu-2404 sshd[1201]: Disconnecting authenticating user root 203.0.113.10 port 40005: Too many authentication failures [preauth]
+2026-10-31T10:03:00.000000+00:00 ubuntu-2404 sshd[1300]: Invalid user admin from 198.51.100.7 port 50000
+2026-10-31T10:03:01.000000+00:00 ubuntu-2404 sshd[1300]: Failed password for invalid user admin from 198.51.100.7 port 50000 ssh2
+2026-10-31T10:03:02.000000+00:00 ubuntu-2404 sshd[1300]: Connection closed by invalid user admin 198.51.100.7 port 50000 [preauth]
+2026-10-31T10:03:03.000000+00:00 ubuntu-2404 sshd[1301]: Invalid user test from 198.51.100.7 port 50001
+2026-10-31T10:03:04.000000+00:00 ubuntu-2404 sshd[1301]: Failed password for invalid user test from 198.51.100.7 port 50001 ssh2
+2026-10-31T10:03:05.000000+00:00 ubuntu-2404 sshd[1301]: Connection closed by invalid user test 198.51.100.7 port 50001 [preauth]
+2026-10-31T10:03:06.000000+00:00 ubuntu-2404 sshd[1302]: Invalid user oracle from 198.51.100.7 port 50002
+2026-10-31T10:03:07.000000+00:00 ubuntu-2404 sshd[1302]: Failed password for invalid user oracle from 198.51.100.7 port 50002 ssh2
+2026-10-31T10:03:08.000000+00:00 ubuntu-2404 sshd[1302]: Connection closed by invalid user oracle 198.51.100.7 port 50002 [preauth]
+2026-10-31T10:04:00.000000+00:00 ubuntu-2404 sshd[1400]: Invalid user ubuntu from 192.0.2.50 port 41000
+2026-10-31T10:04:01.000000+00:00 ubuntu-2404 sshd[1400]: Connection closed by invalid user ubuntu 192.0.2.50 port 41000 [preauth]
+2026-10-31T10:04:05.000000+00:00 ubuntu-2404 sshd[1401]: Connection closed by authenticating user root 192.0.2.51 port 41001 [preauth]
+2026-10-31T10:04:09.000000+00:00 ubuntu-2404 sshd[1402]: Connection closed by 192.0.2.99 port 5555 [preauth]
+2026-10-31T10:04:10.000000+00:00 ubuntu-2404 sshd[1403]: Received disconnect from 192.0.2.99 port 5556:11: Bye Bye [preauth]
+2026-10-31T10:14:00.000000+00:00 ubuntu-2404 sshd[1500]: Accepted publickey for deploy from 192.0.2.20 port 52000 ssh2: ED25519 SHA256:AAAAC3NzaC1lZDI1NTE5AAAAIExampleFingerprint
+2026-10-31T10:14:00.000000+00:00 ubuntu-2404 systemd-logind[400]: New session 4 of user x.
+2026-10-31T10:14:00.000000+00:00 ubuntu-2404 sshd[1500]: pam_unix(sshd:session): session opened for user deploy(uid=1000) by (uid=0)
+2026-10-31T10:29:00.000000+00:00 ubuntu-2404 sshd[1600]: Accepted password for root from 203.0.113.10 port 40100 ssh2
+2026-10-31T10:29:00.000000+00:00 ubuntu-2404 systemd-logind[400]: New session 4 of user x.
+2026-10-31T10:00:00.000000+00:00 ubuntu-2404 CRON[900]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+2026-10-31T10:40:00.000000+00:00 ubuntu-2404 sudo: pam_unix(sudo:auth): authentication failure; logname=alice uid=1001 euid=0 tty=/dev/pts/1 ruser=alice rhost=  user=alice
+2026-10-31T10:40:01.000000+00:00 ubuntu-2404 sudo: message repeated 2 times: [ pam_unix(sudo:auth): authentication failure; logname=alice uid=1001 euid=0 tty=/dev/pts/1 ruser=alice rhost=  user=alice]
+2026-10-31T10:40:02.000000+00:00 ubuntu-2404 sudo: alice : 3 incorrect password attempts ; TTY=pts/1 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/cat /etc/shadow
+2026-10-31T10:40:03.000000+00:00 ubuntu-2404 sudo: mallory : user NOT in sudoers ; TTY=pts/2 ; PWD=/home/mallory ; USER=root ; COMMAND=/usr/bin/id

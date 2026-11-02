@@ -1,3 +1,5 @@
+import { SecurityAudit } from './security-audit/security-audit'
+
 /** The contract between the edge server agent (apps/edge-server) and the Enver instance it connects to: the
  *  jobs the instance sends over the agent's websocket, the messages the agent answers with, and what
  *  the agent reads over HTTP. The agent is published as open source, so nothing the agent imports
@@ -56,6 +58,8 @@ export namespace EdgeProtocol {
 		volumesDirs?: string[]
 		/** Host directories database backups are confined to; empty or absent: no backups. */
 		backupsDirs?: string[]
+		/** Answer `security.audit` jobs. An agent refuses them when absent or false. */
+		securityAudit?: boolean
 	}
 
 	export interface AgentReleasePackage {
@@ -268,6 +272,12 @@ export namespace EdgeProtocol {
 		payload: { requestedAt: string }
 	}
 
+	/** Reads the host's security state (`SecurityAudit`); answered with `security.audit.response`. */
+	export type SecurityAuditJob = EdgeServerJobBase & {
+		type: 'security.audit'
+		payload: SecurityAudit.JobPayload
+	}
+
 	/** Discriminated union — narrows automatically on `job.type`. */
 	export type EdgeServerJob =
 		| ServiceActionJob
@@ -280,6 +290,7 @@ export namespace EdgeProtocol {
 		| BackupRestoreJob
 		| ConnectionRevokeJob
 		| AgentUpdateJob
+		| SecurityAuditJob
 
 	// ─── Status response (edge server → API, via WebSocket) ──────────────────
 
@@ -355,6 +366,12 @@ export namespace EdgeProtocol {
 	export type MetricsReportMessage = {
 		type: 'metrics.report'
 		payload: MetricsReportPayload
+	}
+
+	export type SecurityAuditResponseMessage = {
+		type: 'security.audit.response'
+		queryId: string
+		result: SecurityAudit.Result
 	}
 
 	/** Sent on every (re)connect and whenever the agent's self-update state changes. */

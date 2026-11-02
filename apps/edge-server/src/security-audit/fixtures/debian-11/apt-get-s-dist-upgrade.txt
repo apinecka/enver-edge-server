@@ -1,0 +1,23 @@
+NOTE: This is only a simulation!
+      apt-get needs root privileges for real execution.
+      Keep also in mind that locking is deactivated,
+      so don't depend on the relevance to the real current situation!
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+The following packages will be upgraded:
+  base-files libssl1.1 openssh-client openssh-server openssh-sftp-server openssl
+6 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Inst base-files [11.1+deb11u10] (11.1+deb11u11 Debian:11.11/oldoldstable [amd64])
+Inst libssl1.1 [1.1.1w-0+deb11u1] (1.1.1w-0+deb11u3 Debian-Security:11/oldoldstable-security [amd64])
+Inst openssl [1.1.1w-0+deb11u1] (1.1.1w-0+deb11u3 Debian-Security:11/oldoldstable-security [amd64])
+Inst openssh-sftp-server [1:8.4p1-5+deb11u3] (1:8.4p1-5+deb11u5 Debian-Security:11/oldoldstable-security [amd64]) []
+Inst openssh-server [1:8.4p1-5+deb11u3] (1:8.4p1-5+deb11u5 Debian-Security:11/oldoldstable-security [amd64]) []
+Inst openssh-client [1:8.4p1-5+deb11u3] (1:8.4p1-5+deb11u5 Debian-Security:11/oldoldstable-security [amd64])
+Conf base-files (11.1+deb11u11 Debian:11.11/oldoldstable [amd64])
+Conf libssl1.1 (1.1.1w-0+deb11u3 Debian-Security:11/oldoldstable-security [amd64])
+Conf openssl (1.1.1w-0+deb11u3 Debian-Security:11/oldoldstable-security [amd64])
+Conf openssh-client (1:8.4p1-5+deb11u5 Debian-Security:11/oldoldstable-security [amd64])
+Conf openssh-sftp-server (1:8.4p1-5+deb11u5 Debian-Security:11/oldoldstable-security [amd64])
+Conf openssh-server (1:8.4p1-5+deb11u5 Debian-Security:11/oldoldstable-security [amd64])

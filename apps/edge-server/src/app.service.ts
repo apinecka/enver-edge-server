@@ -10,6 +10,7 @@ import { HostDirsService } from './host-dirs/host-dirs.service'
 import { InstanceLocator } from './instance-locator'
 import { JobProcessorService } from './job-processor/job-processor.service'
 import { MetricsService } from './metrics/metrics.service'
+import { SecurityAuditService } from './security-audit/security-audit.service'
 import { SelfUpdateService } from './self-update/self-update.service'
 import { SettingsClient } from './settings-client'
 
@@ -42,6 +43,7 @@ export class AppService implements OnApplicationBootstrap, OnApplicationShutdown
 		private selfUpdate: SelfUpdateService,
 		private instance: InstanceLocator,
 		private hostDirs: HostDirsService,
+		private securityAudit: SecurityAuditService,
 	) {}
 
 	onApplicationBootstrap() {
@@ -97,6 +99,7 @@ export class AppService implements OnApplicationBootstrap, OnApplicationShutdown
 		this.kubernetesService.reconfigure(toKubernetesOptions(result))
 		this.jobProcessor.setImageCleanupMode(result.imageCleanupMode)
 		this.hostDirs.configure(result)
+		this.securityAudit.configure(result)
 		this.selfUpdate.setAutoUpdate(result.autoUpdate !== false)
 	}
 

@@ -1,0 +1,8 @@
+ii 	base-files	13ubuntu10.3	amd64	
+ii 	libc6	2.39-0ubuntu8.6	amd64	glibc
+ii 	libssl3t64	3.0.13-0ubuntu3.6	amd64	openssl
+ii 	openssh-server	1:9.6p1-3ubuntu13.14	amd64	openssh
+ii 	openssl	3.0.13-0ubuntu3.6	amd64	
+ii 	sudo	1.9.15p5-3ubuntu5	amd64	
+ii 	vim	2:9.1.0016-1ubuntu7.9	amd64	
+hi 	docker-ce	5:28.5.1-1~ubuntu.24.04~noble	amd64	docker-ce

@@ -1,0 +1,20 @@
+#	$OpenBSD: sshd_config,v 1.103 2018/04/09 20:41:22 tj Exp $
+
+Include /etc/ssh/sshd_config.d/*.conf
+
+#Port 22
+#PermitRootLogin prohibit-password
+#PasswordAuthentication yes
+#PermitEmptyPasswords no
+
+# Change to yes to enable challenge-response passwords (beware issues with
+# some PAM modules and threads)
+ChallengeResponseAuthentication no
+
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AllowUsers deploy admin@192.0.2.0/24
+AllowUsers ops
+AcceptEnv LANG LC_*
+Subsystem sftp	/usr/lib/openssh/sftp-server

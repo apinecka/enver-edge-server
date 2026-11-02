@@ -9,6 +9,7 @@ import { config } from '../app.config'
 import { BackupsService } from '../backups/backups.service'
 import { EnvFilesService } from '../env-files/env-files.service'
 import { HostDirsService } from '../host-dirs/host-dirs.service'
+import { SecurityAuditService } from '../security-audit/security-audit.service'
 
 @Injectable()
 export class JobProcessorService {
@@ -29,6 +30,7 @@ export class JobProcessorService {
 		private backupsService: BackupsService,
 		private envFilesService: EnvFilesService,
 		private hostDirs: HostDirsService,
+		private securityAudit: SecurityAuditService,
 	) {}
 
 	async process(job: EdgeProtocol.EdgeServerJob, send: (msg: unknown) => void): Promise<void> {
@@ -61,6 +63,9 @@ export class JobProcessorService {
 			void this.backupsService.handleCreate(job.payload, send)
 		} else if (job.type === 'backup.restore') {
 			void this.backupsService.handleRestore(job.payload, send)
+		} else if (job.type === 'security.audit') {
+			const result = await this.securityAudit.run(job.payload)
+			send({ type: 'security.audit.response', queryId: job.payload.queryId, result } satisfies EdgeProtocol.SecurityAuditResponseMessage)
 		}
 	}
 
