@@ -181,7 +181,11 @@ describe('SecurityAuditService', () => {
 			}))
 			expect(report.logins?.cursor).toMatch(SecurityAudit.JOURNAL_CURSOR_REGEX)
 			expect(report.updates?.counts).toEqual({ security: 3, esmInfra: 0, esmApps: 0, regular: 1 })
-			expect(report.ports).toEqual({ listening: [22, 80, 6379] })
+			expect(report.ports).toEqual({
+				listening: [22, 80, 6379],
+				udpListening: [53, 51820],
+				vpnInterfaces: [{ name: 'tun0', kind: SecurityAudit.VpnKind.tun }, { name: 'wg0', kind: SecurityAudit.VpnKind.wireguard }],
+			})
 			expect(report.accounts).toEqual({
 				accounts: [
 					{ name: 'root', uid: 0, loginShell: true },
@@ -299,7 +303,7 @@ describe('SecurityAuditService', () => {
 			expect(report.ssh).toEqual(expect.objectContaining({ socketActivated: true }))
 			expect(report.ssh?.config).toEqual(expect.objectContaining({ ports: [2222], permitEmptyPasswords: 'yes' }))
 			expect(report.updates?.counts).toEqual({ security: 1, esmInfra: 0, esmApps: 0, regular: 1 })
-			expect(report.ports).toEqual({ listening: [443, 2222, 2375] })
+			expect(report.ports).toEqual({ listening: [443, 2222, 2375], udpListening: [], vpnInterfaces: [] })
 			expect(report.firewall).toEqual({ ufw: { installed: true, enabled: true } })
 			expect(report.persistence?.files).toEqual([])
 		})

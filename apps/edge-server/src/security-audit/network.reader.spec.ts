@@ -1,3 +1,4 @@
+import { SecurityAudit } from '@enver/edge-protocol'
 import { mkdir,mkdtemp, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -13,7 +14,15 @@ describe('NetworkReader', () => {
 		['debian-12', [22, 80, 6379]],
 		['ubuntu-24.04', [443, 2222, 2375]],
 	])('lists the ports of %s listening on every address, not on one', async (distro, ports) => {
-		await expect(new NetworkReader(new HostFs(join(FIXTURES, distro))).ports()).resolves.toEqual({ listening: ports })
+		await expect(new NetworkReader(new HostFs(join(FIXTURES, distro))).ports()).resolves.toEqual(expect.objectContaining({ listening: ports }))
+	})
+
+	it('lists the unconnected UDP ports and the VPN interfaces, nothing else of the network', async () => {
+		await expect(new NetworkReader(new HostFs(join(FIXTURES, 'debian-12'))).ports()).resolves.toEqual(expect.objectContaining({
+			udpListening: [53, 51820],
+			vpnInterfaces: [{ name: 'tun0', kind: SecurityAudit.VpnKind.tun }, { name: 'wg0', kind: SecurityAudit.VpnKind.wireguard }],
+		}))
+		await expect(new NetworkReader(new HostFs(join(FIXTURES, 'ubuntu-24.04'))).ports()).resolves.toEqual(expect.objectContaining({ udpListening: [], vpnInterfaces: [] }))
 	})
 
 	it('reports the ports unavailable without /proc/net/tcp', async () => {

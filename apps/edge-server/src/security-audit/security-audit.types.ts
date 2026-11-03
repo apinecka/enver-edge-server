@@ -55,9 +55,16 @@ export namespace SecurityAuditTypes {
 	export const NO_LOGIN_SHELL = /(^|\/)(nologin|false|sync|halt|shutdown)$/
 	export const PROC_DIR = '/proc'
 	export const PROC_NET_TCP = ['/proc/net/tcp', '/proc/net/tcp6'] as const
+	export const PROC_NET_UDP = ['/proc/net/udp', '/proc/net/udp6'] as const
+	/** The network interfaces; `uevent` names a WireGuard one (`DEVTYPE=wireguard`), `tun_flags` exists for tun/tap. */
+	export const SYS_CLASS_NET = '/sys/class/net'
+	/** `IFF_TAP` in `tun_flags`. */
+	export const IFF_TAP = 0x0002
 	export const PROC_NET_MAX_BYTES = 4 * 1024 * 1024
 	/** `st` of a listening socket in `/proc/net/tcp`. */
 	export const TCP_LISTEN = '0A'
+	/** An unconnected UDP socket (`TCP_CLOSE` in `/proc/net/udp`). */
+	export const UDP_UNCONNECTED = '07'
 	export const CMDLINE_MAX_BYTES = 4096
 	/** Processes looked at per run; a host with more is cut, not refused. */
 	export const MAX_PROCESSES = 10_000

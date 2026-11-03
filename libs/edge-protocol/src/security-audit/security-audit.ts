@@ -26,6 +26,7 @@ export namespace SecurityAudit {
 		listItems: 50,
 		ports: 16,
 		listeningPorts: 256,
+		vpnInterfaces: 16,
 		accounts: 100,
 		groupMembers: 100,
 		persistenceFiles: 500,
@@ -229,11 +230,26 @@ export namespace SecurityAudit {
 		stateDirectory: boolean
 	}
 
-	/** TCP sockets listening on every address (`0.0.0.0` or `::`) per `/proc/net/tcp` and `tcp6`. Sockets
-	 *  bound to one address, loopback included, aren't reported. */
+	/** Sockets bound to every address (`0.0.0.0` or `::`) per `/proc/net/{tcp,udp}{,6}`. Sockets bound to
+	 *  one address, loopback included, aren't reported. */
 	export interface PortsSection {
-		/** Sorted, each once. */
+		/** TCP ports listening; sorted, each once. */
 		listening: number[]
+		/** UDP ports bound and not connected (a VPN, DNS...); sorted, each once. Absent from older agents. */
+		udpListening?: number[]
+		/** The host's VPN interfaces from `/sys/class/net`, by name. Absent from older agents. */
+		vpnInterfaces?: VpnInterface[]
+	}
+
+	export enum VpnKind {
+		wireguard = 'wireguard',
+		tun = 'tun',
+		tap = 'tap',
+	}
+
+	export interface VpnInterface {
+		name: string
+		kind: VpnKind
 	}
 
 	export interface Account {

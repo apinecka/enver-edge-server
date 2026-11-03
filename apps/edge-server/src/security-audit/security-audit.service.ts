@@ -189,7 +189,11 @@ export class SecurityAuditService {
 				esmApps: packages(updates.esmApps),
 				regular: packages(updates.regular),
 			},
-			ports: ports && { listening: ports.listening.slice(0, LIMITS.listeningPorts) },
+			ports: ports && {
+				listening: ports.listening.slice(0, LIMITS.listeningPorts),
+				...ports.udpListening ? { udpListening: ports.udpListening.slice(0, LIMITS.listeningPorts) } : {},
+				...ports.vpnInterfaces ? { vpnInterfaces: ports.vpnInterfaces.slice(0, LIMITS.vpnInterfaces).map((v) => ({ ...v, name: short(v.name) })) } : {},
+			},
 			accounts: accounts && {
 				accounts: accounts.accounts.slice(0, LIMITS.accounts).map((a) => ({ ...a, name: short(a.name) })),
 				groups: accounts.groups.map((g) => ({ name: short(g.name), members: list(g.members, LIMITS.groupMembers) })),
