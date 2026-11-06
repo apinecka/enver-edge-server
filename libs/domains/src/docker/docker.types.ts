@@ -63,6 +63,18 @@ export namespace DockerTypes {
 		uptimeSeconds: number | null
 	}
 
+	export interface DiskUsage {
+		usedBytes: number
+		totalBytes: number
+	}
+
+	/** Running containers tried for `df` when Docker's storage can't be read from the agent's host. */
+	export const DISK_USAGE_MAX_CONTAINERS = 3
+	export const DISK_USAGE_EXEC_TIMEOUT_MS = 10_000
+
+	/** An error Docker reported inside a pull's progress stream (`{"error": ...}`), e.g. a full disk. */
+	export class PullFailedError extends Error { public code = 'pull_failed' }
+
 	export class ContainerNotFoundError extends Error { public code = 'container_not_found' }
 	export class ContainerRemovalInProgressError extends Error { public code = 'container_removal_in_progress' }
 	export class ContainerNotManagedError extends Error {

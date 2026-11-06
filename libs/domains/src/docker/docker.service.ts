@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import * as Dockerode from 'dockerode'
-import { Readable } from 'stream'
+import { statfsSync } from 'fs'
+import { Readable, Writable } from 'stream'
 
 import { DockerTypes } from './docker.types'
 import { DockerFrameDemux } from './docker-frame-demux'
@@ -8,6 +9,7 @@ import { DockerFrameDemux } from './docker-frame-demux'
 @Injectable()
 export class DockerService {
 	private docker!: Dockerode
+	private remote = false
 
 	constructor(options: DockerTypes.Options) {
 		this.reconfigure(options)
@@ -18,20 +20,50 @@ export class DockerService {
 	 *  refreshed at runtime (see apps/edge-server AppService's periodic settings poll) without
 	 *  restarting the process. */
 	reconfigure(options: DockerTypes.Options): void {
+		this.remote = !!options.host
 		this.docker = new Dockerode({
 			socketPath: options.socketPath ?? '/var/run/docker.sock',
 			...(options.host ? { host: options.host, port: options.port ?? 2375 } : {}),
 		})
 	}
 
+	/** Docker reports a failure after the pull started (a full disk while extracting, a broken layer)
+	 *  only as an `error` entry in the progress stream, which still ends normally. */
 	async pullImage(image: string, auth?: DockerTypes.RegistryAuth): Promise<void> {
 		const stream = await this.docker.pull(image, auth ? { authconfig: auth } : {})
 		await new Promise<void>((resolve, reject) => {
-			this.docker.modem.followProgress(stream, (err: Error | null) => {
-				if (err) reject(err)
+			this.docker.modem.followProgress(stream, (err: Error | null, output: unknown[] = []) => {
+				if (err) { reject(err); return }
+				const failure = output.find((event): event is { error: unknown } => typeof event === 'object' && event !== null && 'error' in event && !!(event as { error: unknown }).error)
+				if (failure) reject(new DockerTypes.PullFailedError(typeof failure.error === 'string' ? failure.error : JSON.stringify(failure.error)))
 				else resolve()
 			})
 		})
+	}
+
+	/** Usage of the filesystem holding Docker's images and containers - not the agent host's `/`,
+	 *  which says nothing about Docker Desktop's VM disk or a separate `/var/lib/docker` partition.
+	 *  A local Linux daemon's data root is read directly; otherwise (Docker Desktop, a remote daemon)
+	 *  `df` runs inside one of Enver's running containers, whose root lies on that filesystem. */
+	async getDiskUsage(): Promise<DockerTypes.DiskUsage | null> {
+		const info = await this.docker.info() as { DockerRootDir?: string }
+		if (!this.remote && process.platform === 'linux' && info.DockerRootDir) {
+			try {
+				const stats = statfsSync(info.DockerRootDir)
+				const totalBytes = stats.blocks * stats.bsize
+				return { totalBytes, usedBytes: totalBytes - stats.bavail * stats.bsize }
+			} catch { /* falls back to df inside a container */ }
+		}
+		const containers = (await this.docker.listContainers({ filters: { status: ['running'] } }))
+			.filter((c) => c.Labels?.[DockerTypes.MANAGED_LABEL] === 'true' || this.onManagedNetwork([c.HostConfig?.NetworkMode ?? '', ...Object.keys(c.NetworkSettings?.Networks ?? {})]))
+			.slice(0, DockerTypes.DISK_USAGE_MAX_CONTAINERS)
+		for (const c of containers) {
+			try {
+				const usage = this.parseDf(await this.execToString((c.Names[0] ?? c.Id).replace(/^\//, ''), ['df', '-kP', '/']))
+				if (usage) return usage
+			} catch { /* an image without df, or a container that just stopped */ }
+		}
+		return null
 	}
 
 	async ensureNetwork(name: string): Promise<void> {
@@ -175,6 +207,29 @@ export class DockerService {
 		})
 
 		await this.assertExecSucceeded(exec, demux.stderrChunks)
+	}
+
+	private async execToString(containerName: string, cmd: string[]): Promise<string> {
+		const chunks: Buffer[] = []
+		const sink = new Writable({ write(chunk: Buffer, _encoding, done) { chunks.push(chunk); done() } })
+		let timer: ReturnType<typeof setTimeout> | undefined
+		const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`${cmd[0]} timed out`)), DockerTypes.DISK_USAGE_EXEC_TIMEOUT_MS) })
+		try {
+			await Promise.race([this.execToStream(containerName, cmd, sink), timeout])
+		} finally {
+			clearTimeout(timer)
+		}
+		return Buffer.concat(chunks).toString('utf8')
+	}
+
+	/** POSIX `df -kP` output: a header, then `<fs> <1024-blocks> <used> <available> <capacity> <mount>`.
+	 *  Used is total minus available, so blocks reserved for root count as used, as they do for Docker. */
+	private parseDf(this: void, output: string): DockerTypes.DiskUsage | null {
+		const fields = output.trim().split('\n')[1]?.trim().split(/\s+/) ?? []
+		const total = Number(fields[1])
+		const available = Number(fields[3])
+		if (!Number.isSafeInteger(total) || !Number.isSafeInteger(available) || total <= 0 || available < 0 || available > total) return null
+		return { totalBytes: total * 1024, usedBytes: (total - available) * 1024 }
 	}
 
 	/** Execs `cmd` inside `containerName`, streaming `input` (e.g. a file, `pg_restore ... < file`) in

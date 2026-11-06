@@ -1,6 +1,8 @@
 export namespace JobProcessorTypes {
 	export type ActionError = { message: string; at: number }
 
+	export type ImageRef = { ref: string; id: string }
+
 	export type Backoff = { failures: number; nextAttemptAt: number }
 
 	/** Delays before the reconcile loop retries a service whose last action failed: a pull that keeps

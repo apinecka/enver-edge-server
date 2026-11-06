@@ -63,7 +63,7 @@ export class AppService implements OnApplicationBootstrap, OnApplicationShutdown
 			void this.jobProcessor.runPeriodicImageCleanup()
 		}, IMAGE_CLEANUP_INTERVAL_MS)
 		this.metricsReportTimer = setInterval(() => {
-			this.reportMetrics()
+			void this.reportMetrics()
 		}, METRICS_REPORT_INTERVAL_MS)
 	}
 
@@ -78,9 +78,11 @@ export class AppService implements OnApplicationBootstrap, OnApplicationShutdown
 	}
 
 	/** Proactive push (not a response to a query), same WebSocket connection as status/logs responses. */
-	private reportMetrics(): void {
+	private async reportMetrics(): Promise<void> {
 		if (this.ws?.readyState !== WebSocket.OPEN) return
-		const payload = this.metricsService.collect()
+		const dockerDisk = await this.dockerService.getDiskUsage().catch((): EdgeProtocol.DiskUsage | null => null)
+		const payload = { ...this.metricsService.collect(), dockerDisk }
+		if (this.ws?.readyState !== WebSocket.OPEN) return
 		this.ws.send(JSON.stringify({ type: 'metrics.report', payload } satisfies EdgeProtocol.MetricsReportMessage))
 	}
 

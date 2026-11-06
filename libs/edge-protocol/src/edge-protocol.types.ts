@@ -361,6 +361,14 @@ export namespace EdgeProtocol {
 		diskUsedBytes: number
 		diskTotalBytes: number
 		uptimeSeconds: number
+		/** The filesystem holding Docker's images and containers; absent from older agents, null when
+		 *  Docker isn't reachable or no running container could tell. */
+		dockerDisk?: DiskUsage | null
+	}
+
+	export type DiskUsage = {
+		usedBytes: number
+		totalBytes: number
 	}
 
 	export type MetricsReportMessage = {

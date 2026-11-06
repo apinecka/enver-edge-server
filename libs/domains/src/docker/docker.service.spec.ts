@@ -13,7 +13,8 @@ const mockGetImage = jest.fn(() => ({ remove: mockImageRemove }))
 const mockListImages = jest.fn()
 const mockPull = jest.fn()
 const mockListContainers = jest.fn()
-const mockFollowProgress = jest.fn((_stream: unknown, cb: (err: Error | null) => void) => cb(null))
+const mockFollowProgress = jest.fn((_stream: unknown, cb: (err: Error | null, output?: unknown[]) => void) => cb(null))
+const mockInfo = jest.fn()
 
 jest.mock('dockerode', () => jest.fn().mockImplementation(() => ({
 	getContainer: mockGetContainer,
@@ -22,6 +23,7 @@ jest.mock('dockerode', () => jest.fn().mockImplementation(() => ({
 	listContainers: mockListContainers,
 	pull: mockPull,
 	createContainer: mockCreateContainer,
+	info: mockInfo,
 	modem: { followProgress: mockFollowProgress },
 })))
 
@@ -64,6 +66,54 @@ describe('DockerService', () => {
 			const auth = { username: 'me', password: 'token', serveraddress: 'https://index.docker.io/v1/' }
 			await service.pullImage('myapp/api:latest', auth)
 			expect(mockPull).toHaveBeenCalledWith('myapp/api:latest', { authconfig: auth })
+		})
+
+		it('fails with the error Docker reported inside the progress stream', async () => {
+			mockFollowProgress.mockImplementation((_stream: unknown, cb: (err: Error | null, output?: unknown[]) => void) =>
+				cb(null, [{ status: 'Pull complete' }, { error: 'failed to extract layer: no space left on device', errorDetail: {} }]))
+
+			await expect(service.pullImage('nginx:latest')).rejects.toThrow(new DockerTypes.PullFailedError('failed to extract layer: no space left on device'))
+		})
+	})
+
+	describe('getDiskUsage', () => {
+		const container = (name: string, labels: Record<string, string> = { [DockerTypes.MANAGED_LABEL]: 'true' }) =>
+			({ Id: name, Names: [`/${name}`], Labels: labels, HostConfig: { NetworkMode: 'bridge' }, NetworkSettings: { Networks: {} } })
+
+		beforeEach(() => {
+			Object.defineProperty(process, 'platform', { value: 'darwin' })
+			mockInfo.mockResolvedValue({ DockerRootDir: '/var/lib/docker' })
+		})
+
+		afterEach(() => Object.defineProperty(process, 'platform', { value: 'linux' }))
+
+		it('runs df inside a managed container off a local Linux host and reads total minus available', async () => {
+			mockListContainers.mockResolvedValue([container('other', {}), container('dev-api')])
+			const execToStream = jest.spyOn(service, 'execToStream').mockImplementation((_name, _cmd, dest) => {
+				dest.write(Buffer.from('Filesystem 1024-blocks Used Available Capacity Mounted on\noverlay 1000 850 100 90% /\n'))
+				return Promise.resolve()
+			})
+
+			await expect(service.getDiskUsage()).resolves.toEqual({ totalBytes: 1000 * 1024, usedBytes: 900 * 1024 })
+			expect(execToStream).toHaveBeenCalledWith('dev-api', ['df', '-kP', '/'], expect.anything())
+		})
+
+		it('tries the next container when one has no df', async () => {
+			mockListContainers.mockResolvedValue([container('distroless'), container('dev-api')])
+			jest.spyOn(service, 'execToStream')
+				.mockRejectedValueOnce(new DockerTypes.ExecFailedError(127, 'df: not found'))
+				.mockImplementationOnce((_name, _cmd, dest) => {
+					dest.write(Buffer.from('Filesystem 1024-blocks Used Available Capacity Mounted on\noverlay 2000 500 1500 25% /\n'))
+					return Promise.resolve()
+				})
+
+			await expect(service.getDiskUsage()).resolves.toEqual({ totalBytes: 2000 * 1024, usedBytes: 500 * 1024 })
+		})
+
+		it('reports nothing when no container can tell', async () => {
+			mockListContainers.mockResolvedValue([])
+
+			await expect(service.getDiskUsage()).resolves.toBeNull()
 		})
 	})
 

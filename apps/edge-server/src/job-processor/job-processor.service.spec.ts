@@ -252,47 +252,72 @@ describe('JobProcessorService', () => {
 	// ─── image cleanup after swap ─────────────────────────────────────────────
 
 	describe('image cleanup after swap', () => {
+		const flush = () => new Promise((resolve) => setImmediate(resolve))
+		const status = (imageTag: string, imageDigest: string): DockerTypes.DetailedStatus => ({ ...makeDockerStatus('running'), imageTag, imageDigest })
+
 		it('does nothing when there was no prior container (first-ever start)', async () => {
 			mockDockerService.getDetailedStatus.mockRejectedValue(new DockerTypes.ContainerNotFoundError())
 
 			await service['handleDockerAction'](makeActionPayload({ action: 'start', image: 'nginx:1.2' }))
+			await flush()
 
 			expect(mockDockerService.removeImage).not.toHaveBeenCalled()
 			expect(mockDockerService.removeUnusedImages).not.toHaveBeenCalled()
 		})
 
-		it('in \'swapped-only\' mode (the default), removes just the previous image tag once the swap succeeds', async () => {
-			mockDockerService.getDetailedStatus.mockResolvedValue(makeDockerStatus('running'))
+		it('in \'swapped-only\' mode (the default), removes the previous tag and its image once the swap succeeds', async () => {
+			mockDockerService.getDetailedStatus
+				.mockResolvedValueOnce(status('1.2', 'sha256:old'))
+				.mockResolvedValueOnce(status('1.3', 'sha256:new'))
 
 			await service['handleDockerAction'](makeActionPayload({ action: 'restart', image: 'nginx:1.3', containerName: 'c1' }))
+			await flush()
 
-			expect(mockDockerService.removeImage).toHaveBeenCalledWith('nginx:latest')
+			expect(mockDockerService.removeImage).toHaveBeenCalledWith('nginx:1.2')
+			expect(mockDockerService.removeImage).toHaveBeenCalledWith('sha256:old')
 			expect(mockDockerService.removeUnusedImages).not.toHaveBeenCalled()
 		})
 
-		it('does not remove the previous image when the swap re-deploys the same image:tag', async () => {
-			mockDockerService.getDetailedStatus.mockResolvedValue(makeDockerStatus('running'))
+		it('removes the previous image by id when a re-pulled tag now points to a new image', async () => {
+			mockDockerService.getDetailedStatus
+				.mockResolvedValueOnce(status('latest', 'sha256:old'))
+				.mockResolvedValueOnce(status('latest', 'sha256:new'))
 
 			await service['handleDockerAction'](makeActionPayload({ action: 'restart', image: 'nginx:latest', containerName: 'c1' }))
+			await flush()
+
+			expect(mockDockerService.removeImage).toHaveBeenCalledTimes(1)
+			expect(mockDockerService.removeImage).toHaveBeenCalledWith('sha256:old')
+		})
+
+		it('does not remove anything when the swap kept the same image', async () => {
+			mockDockerService.getDetailedStatus.mockResolvedValue(status('latest', 'sha256:same'))
+
+			await service['handleDockerAction'](makeActionPayload({ action: 'restart', image: 'nginx:latest', containerName: 'c1' }))
+			await flush()
 
 			expect(mockDockerService.removeImage).not.toHaveBeenCalled()
 		})
 
-		it('in \'all-unused\' mode, sweeps every unreferenced image instead of just the previous tag', async () => {
+		it('in \'all-unused\' mode, sweeps every unreferenced image instead of just the previous one', async () => {
 			mockDockerService.getDetailedStatus.mockResolvedValue(makeDockerStatus('running'))
 			service.setImageCleanupMode(EdgeProtocol.ImageCleanupMode.allUnused)
 
 			await service['handleDockerAction'](makeActionPayload({ action: 'start', image: 'nginx:1.3' }))
+			await flush()
 
 			expect(mockDockerService.removeUnusedImages).toHaveBeenCalled()
 			expect(mockDockerService.removeImage).not.toHaveBeenCalled()
 		})
 
 		it('never fails the swap itself if cleanup throws', async () => {
-			mockDockerService.getDetailedStatus.mockResolvedValue(makeDockerStatus('running'))
+			mockDockerService.getDetailedStatus
+				.mockResolvedValueOnce(status('1.2', 'sha256:old'))
+				.mockResolvedValueOnce(status('1.3', 'sha256:new'))
 			mockDockerService.removeImage.mockRejectedValue(new Error('daemon unreachable'))
 
 			await expect(service['handleDockerAction'](makeActionPayload({ action: 'restart', image: 'nginx:1.3' }))).resolves.toBeUndefined()
+			await flush()
 		})
 	})
 

@@ -185,7 +185,7 @@ export class JobProcessorService {
 					})
 					await this.dockerService.startContainer(payload.containerName)
 				})
-				void this.cleanupAfterSwap(previousImage, payload.image)
+				void this.cleanupAfterSwap(previousImage, payload.containerName)
 				break
 			}
 			case 'stop':
@@ -200,13 +200,13 @@ export class JobProcessorService {
 		}
 	}
 
-	/** Image ref (`name:tag`) the container was running before this swap, or null if it has no prior
-	 *  container (first-ever start). Read before pulling the new image, since createContainer below
-	 *  replaces the container and its old image reference becomes unrecoverable. */
-	private async previousImageRef(containerName: string): Promise<string | null> {
+	/** Image the container was running before this swap, or null if it has no prior container
+	 *  (first-ever start). Read before pulling the new image, since createContainer below replaces the
+	 *  container and its old image becomes unrecoverable. */
+	private async previousImageRef(containerName: string): Promise<JobProcessorTypes.ImageRef | null> {
 		try {
 			const status = await this.dockerService.getDetailedStatus(containerName)
-			return status.imageTag ? `${status.image}:${status.imageTag}` : status.image
+			return { ref: status.imageTag ? `${status.image}:${status.imageTag}` : status.image, id: status.imageDigest }
 		} catch (err) {
 			if (err instanceof DockerTypes.ContainerNotFoundError) return null
 			throw err
@@ -214,16 +214,24 @@ export class JobProcessorService {
 	}
 
 	/** Fire-and-forget so a cleanup failure never fails the swap itself - the job has already been
-	 *  acked successfully by the time this runs. */
-	private async cleanupAfterSwap(previousImage: string | null, newImage: string): Promise<void> {
+	 *  acked successfully by the time this runs.
+	 *  The previous image is compared by id, not by name: a re-pulled tag points to the new image and
+	 *  leaves the old one dangling, which removing it by name would never reach. Removing by id is
+	 *  refused (and kept) while another container still uses it. */
+	private async cleanupAfterSwap(previousImage: JobProcessorTypes.ImageRef | null, containerName: string): Promise<void> {
 		try {
 			if (this.imageCleanupMode === EdgeProtocol.ImageCleanupMode.allUnused) {
 				await this.dockerService.removeUnusedImages()
-			} else if (previousImage && previousImage !== newImage) {
-				await this.dockerService.removeImage(previousImage)
+				return
 			}
+			if (!previousImage) return
+			const current = await this.dockerService.getDetailedStatus(containerName)
+			if (current.imageDigest === previousImage.id) return
+			const currentRef = current.imageTag ? `${current.image}:${current.imageTag}` : current.image
+			if (previousImage.ref !== currentRef) await this.dockerService.removeImage(previousImage.ref)
+			await this.dockerService.removeImage(previousImage.id)
 		} catch (err) {
-			this.logger.warn({ err }, `Image cleanup after swap failed for ${newImage}`)
+			this.logger.warn({ err }, `Image cleanup after swap failed for ${containerName}`)
 		}
 	}
 
