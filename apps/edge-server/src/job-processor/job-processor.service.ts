@@ -10,14 +10,19 @@ import { BackupsService } from '../backups/backups.service'
 import { EnvFilesService } from '../env-files/env-files.service'
 import { HostDirsService } from '../host-dirs/host-dirs.service'
 import { SecurityAuditService } from '../security-audit/security-audit.service'
+import { JobProcessorTypes } from './job-processor.types'
 
 @Injectable()
 export class JobProcessorService {
 	private readonly logger = new Logger(JobProcessorService.name)
 	private watchedServices: EdgeProtocol.ServiceStatusQueryItem[] = []
 	private desiredStates = new Map<string, EdgeProtocol.DesiredStateServiceSpec>()
-	/** Message from each service's last failed start/stop/restart attempt - cleared on the next success. */
-	private lastActionErrors = new Map<string, string>()
+	/** Each service's last failed start/stop/restart attempt - cleared on the next success, once the
+	 *  container started after it, or after `ACTION_ERROR_TTL_MS`. */
+	private lastActionErrors = new Map<string, JobProcessorTypes.ActionError>()
+	/** When the reconcile loop may retry a service whose last action failed. Explicit jobs ignore it. */
+	private backoffs = new Map<string, JobProcessorTypes.Backoff>()
+	private inFlightActions = new Set<string>()
 	/** Phase of the in-flight start/stop/restart action for a service - overlays the raw Docker/Kubernetes
 	 *  state in status checks so pulling/starting/restarting/stopping are visible while an action is running.
 	 *  Cleared once the action settles (success or failure), letting the real state take over. */
@@ -104,11 +109,12 @@ export class JobProcessorService {
 		if (this.watchedServices.length === 0) return
 		const response = await this.buildStatusResponse('', this.watchedServices)
 		send(response)
-		await this.reconcile(response.results)
+		this.reconcile(response.results)
 	}
 
 	private async handleServiceAction(p: EdgeProtocol.ServiceActionJobPayload): Promise<void> {
 		this.logger.log(`${p.action} ${p.containerName} (${p.deploymentType})`)
+		this.inFlightActions.add(p.environmentServiceGuid)
 		try {
 			if (p.deploymentType === 'docker') {
 				await this.handleDockerAction(await this.withEnvFile(p))
@@ -119,11 +125,14 @@ export class JobProcessorService {
 				return
 			}
 			this.lastActionErrors.delete(p.environmentServiceGuid)
+			this.backoffs.delete(p.environmentServiceGuid)
 		} catch (err) {
-			this.lastActionErrors.set(p.environmentServiceGuid, this.extractErrorMessage(err))
+			this.lastActionErrors.set(p.environmentServiceGuid, { message: this.extractErrorMessage(err), at: Date.now() })
+			this.recordFailure(p.environmentServiceGuid)
 			throw err
 		} finally {
 			this.transitions.delete(p.environmentServiceGuid)
+			this.inFlightActions.delete(p.environmentServiceGuid)
 		}
 	}
 
@@ -271,22 +280,46 @@ export class JobProcessorService {
 		return { username: auth.username, password: auth.token, serveraddress: auth.registryUrl }
 	}
 
-	private async reconcile(results: EdgeProtocol.ServiceStatusResult[]): Promise<void> {
+	/** Starts (or stops) each service whose actual state differs from the desired one, without waiting:
+	 *  a service whose action is still running, or that failed recently, is left for a later tick. */
+	private reconcile(results: EdgeProtocol.ServiceStatusResult[]): void {
 		for (const result of results) {
 			const spec = this.desiredStates.get(result.environmentServiceGuid)
-			if (!spec) continue
-			if (spec.desiredState === 'running' && result.status === 'stopped') {
-				this.logger.log(`Reconciling ${spec.containerName}: starting (desired=running, actual=stopped)`)
-				await this.handleServiceAction({ ...spec, action: 'start' }).catch((err: unknown) =>
-					this.logger.error({ err }, `Reconcile failed: start ${spec.containerName}`)
-				)
-			} else if (spec.desiredState === 'stopped' && result.status === 'running') {
-				this.logger.log(`Reconciling ${spec.containerName}: stopping (desired=stopped, actual=running)`)
-				await this.handleServiceAction({ ...spec, action: 'stop' }).catch((err: unknown) =>
-					this.logger.error({ err }, `Reconcile failed: stop ${spec.containerName}`)
-				)
-			}
+			if (!spec || !this.mayReconcile(spec.environmentServiceGuid)) continue
+			const action = spec.desiredState === 'running' && result.status === 'stopped' ? 'start'
+				: spec.desiredState === 'stopped' && result.status === 'running' ? 'stop'
+					: null
+			if (!action) continue
+			this.logger.log(`Reconciling ${spec.containerName}: ${action === 'start' ? 'starting (desired=running, actual=stopped)' : 'stopping (desired=stopped, actual=running)'}`)
+			void this.handleServiceAction({ ...spec, action }).catch((err: unknown) =>
+				this.logger.error({ err }, `Reconcile failed: ${action} ${spec.containerName}`)
+			)
 		}
+	}
+
+	private mayReconcile(environmentServiceGuid: string): boolean {
+		if (this.inFlightActions.has(environmentServiceGuid)) return false
+		const backoff = this.backoffs.get(environmentServiceGuid)
+		return !backoff || Date.now() >= backoff.nextAttemptAt
+	}
+
+	private recordFailure(environmentServiceGuid: string): void {
+		const failures = (this.backoffs.get(environmentServiceGuid)?.failures ?? 0) + 1
+		const delay = Math.min(JobProcessorTypes.RECONCILE_BACKOFF_BASE_MS * 2 ** (failures - 1), JobProcessorTypes.RECONCILE_BACKOFF_MAX_MS)
+		this.backoffs.set(environmentServiceGuid, { failures, nextAttemptAt: Date.now() + delay })
+	}
+
+	/** The last action error, unless it expired or the service has been running since a start after it. */
+	private currentError(environmentServiceGuid: string, status: EdgeProtocol.ServiceStatusResult['status'], uptimeSeconds: number | null): string | null {
+		const error = this.lastActionErrors.get(environmentServiceGuid)
+		if (!error) return null
+		const now = Date.now()
+		const startedAfter = status === 'running' && uptimeSeconds != null && now - uptimeSeconds * 1000 > error.at
+		if (startedAfter || now - error.at > JobProcessorTypes.ACTION_ERROR_TTL_MS) {
+			this.lastActionErrors.delete(environmentServiceGuid)
+			return null
+		}
+		return error.message
 	}
 
 	private async pushServiceStatus(p: EdgeProtocol.ServiceActionJobPayload, send: (msg: unknown) => void): Promise<void> {
@@ -298,7 +331,7 @@ export class JobProcessorService {
 		}).catch((): EdgeProtocol.ServiceStatusResult => ({
 			environmentServiceGuid: p.environmentServiceGuid,
 			status: 'stopped', image: null, imageTag: null, imageDigest: null, uptimeSeconds: null,
-			errorMessage: this.lastActionErrors.get(p.environmentServiceGuid) ?? null,
+			errorMessage: this.currentError(p.environmentServiceGuid, 'stopped', null),
 		}))
 		send({ type: 'status.response', queryId: '', results: [result] } satisfies EdgeProtocol.ServiceStatusResponseMessage)
 	}
@@ -309,7 +342,7 @@ export class JobProcessorService {
 				this.checkServiceStatus(s).catch((): EdgeProtocol.ServiceStatusResult => ({
 					environmentServiceGuid: s.environmentServiceGuid,
 					status: 'stopped', image: null, imageTag: null, imageDigest: null, uptimeSeconds: null,
-					errorMessage: this.lastActionErrors.get(s.environmentServiceGuid) ?? null,
+					errorMessage: this.currentError(s.environmentServiceGuid, 'stopped', null),
 				}))
 			)
 		)
@@ -333,19 +366,19 @@ export class JobProcessorService {
 	}
 
 	private async checkDockerStatus(s: EdgeProtocol.ServiceStatusQueryItem): Promise<EdgeProtocol.ServiceStatusResult> {
-		const errorMessage = this.lastActionErrors.get(s.environmentServiceGuid) ?? null
 		const transition = this.transitions.get(s.environmentServiceGuid)
 		try {
 			const d = await this.dockerService.getDetailedStatus(s.containerName)
+			const status = transition ?? this.dockerStateToStatus(d.state)
 			return {
 				environmentServiceGuid: s.environmentServiceGuid,
-				status: transition ?? this.dockerStateToStatus(d.state),
+				status,
 				image: d.image, imageTag: d.imageTag, imageDigest: d.imageDigest, uptimeSeconds: d.uptimeSeconds,
-				errorMessage,
+				errorMessage: this.currentError(s.environmentServiceGuid, status, d.uptimeSeconds),
 			}
 		} catch (err) {
 			if (err instanceof DockerTypes.ContainerNotFoundError)
-				return { environmentServiceGuid: s.environmentServiceGuid, status: transition ?? 'stopped', image: null, imageTag: null, imageDigest: null, uptimeSeconds: null, errorMessage }
+				return { environmentServiceGuid: s.environmentServiceGuid, status: transition ?? 'stopped', image: null, imageTag: null, imageDigest: null, uptimeSeconds: null, errorMessage: this.currentError(s.environmentServiceGuid, 'stopped', null) }
 			if (err instanceof DockerTypes.ContainerNotManagedError)
 				return { environmentServiceGuid: s.environmentServiceGuid, status: 'stopped', image: null, imageTag: null, imageDigest: null, uptimeSeconds: null, errorMessage: err.message }
 			throw err
@@ -353,19 +386,19 @@ export class JobProcessorService {
 	}
 
 	private async checkKubernetesStatus(s: EdgeProtocol.ServiceStatusQueryItem): Promise<EdgeProtocol.ServiceStatusResult> {
-		const errorMessage = this.lastActionErrors.get(s.environmentServiceGuid) ?? null
 		const transition = this.transitions.get(s.environmentServiceGuid)
 		try {
 			const d = await this.kubernetesService.getDetailedStatus(this.namespace(s.environmentGuid), s.containerName)
+			const status = transition ?? this.k8sPhaseToStatus(d.phase)
 			return {
 				environmentServiceGuid: s.environmentServiceGuid,
-				status: transition ?? this.k8sPhaseToStatus(d.phase),
+				status,
 				image: d.image, imageTag: d.imageTag, imageDigest: d.imageDigest, uptimeSeconds: d.uptimeSeconds,
-				errorMessage: errorMessage ?? d.problem,
+				errorMessage: this.currentError(s.environmentServiceGuid, status, d.uptimeSeconds) ?? d.problem,
 			}
 		} catch (err) {
 			if (err instanceof KubernetesTypes.DeploymentNotFoundError)
-				return { environmentServiceGuid: s.environmentServiceGuid, status: transition ?? 'stopped', image: null, imageTag: null, imageDigest: null, uptimeSeconds: null, errorMessage }
+				return { environmentServiceGuid: s.environmentServiceGuid, status: transition ?? 'stopped', image: null, imageTag: null, imageDigest: null, uptimeSeconds: null, errorMessage: this.currentError(s.environmentServiceGuid, 'stopped', null) }
 			throw err
 		}
 	}

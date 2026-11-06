@@ -401,7 +401,7 @@ describe('JobProcessorService', () => {
 			await expect(service['handleServiceAction'](makeActionPayload({ envFile: 'app.env' }))).rejects.toThrow('not found')
 
 			expect(mockDockerService.createContainer).not.toHaveBeenCalled()
-			expect(service['lastActionErrors'].get('svc-guid')).toBe('Env file "app.env" not found')
+			expect(service['lastActionErrors'].get('svc-guid')).toEqual(expect.objectContaining({ message: 'Env file "app.env" not found' }))
 		})
 	})
 
@@ -485,7 +485,7 @@ describe('JobProcessorService', () => {
 			await expect(service['handleServiceAction'](makeActionPayload({ action: 'start' })))
 				.rejects.toThrow('pull failed: no such image')
 
-			expect(service['lastActionErrors'].get('svc-guid')).toBe('pull failed: no such image')
+			expect(service['lastActionErrors'].get('svc-guid')).toEqual(expect.objectContaining({ message: 'pull failed: no such image' }))
 		})
 
 		it('clears any previously recorded error after a successful action', async () => {
@@ -793,6 +793,123 @@ describe('JobProcessorService', () => {
 
 			expect(mockDockerService.getDetailedStatus).toHaveBeenCalledTimes(1)
 			expect(mockDockerService.getDetailedStatus).toHaveBeenCalledWith('production-api')
+		})
+	})
+
+	// ─── reconcile backoff ────────────────────────────────────────────────────
+
+	describe('reconcile backoff', () => {
+		const flush = () => new Promise((resolve) => setImmediate(resolve))
+
+		beforeEach(() => {
+			jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] })
+			jest.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+			service.syncDesiredStates([{ ...makeActionPayload(), desiredState: 'running' } as EdgeProtocol.DesiredStateServiceSpec])
+			mockDockerService.pullImage.mockRejectedValue(new Error('429 Too Many Requests'))
+		})
+
+		afterEach(() => jest.useRealTimers())
+
+		async function tick(): Promise<void> {
+			await service.pushAllStatuses(jest.fn())
+			await flush()
+		}
+
+		it('does not retry a failed start until its backoff passed, then doubles it', async () => {
+			await tick()
+			expect(mockDockerService.pullImage).toHaveBeenCalledTimes(1)
+
+			jest.advanceTimersByTime(29_000)
+			await tick()
+			expect(mockDockerService.pullImage).toHaveBeenCalledTimes(1)
+
+			jest.advanceTimersByTime(1_000)
+			await tick()
+			expect(mockDockerService.pullImage).toHaveBeenCalledTimes(2)
+
+			jest.advanceTimersByTime(30_000)
+			await tick()
+			expect(mockDockerService.pullImage).toHaveBeenCalledTimes(2)
+
+			jest.advanceTimersByTime(30_000)
+			await tick()
+			expect(mockDockerService.pullImage).toHaveBeenCalledTimes(3)
+		})
+
+		it('caps the backoff', async () => {
+			for (let i = 0; i < 10; i++) {
+				await tick()
+				jest.advanceTimersByTime(15 * 60_000)
+			}
+			expect(mockDockerService.pullImage).toHaveBeenCalledTimes(10)
+		})
+
+		it('does not start a second action while one is still running', async () => {
+			mockDockerService.pullImage.mockReturnValue(new Promise(() => undefined))
+
+			await tick()
+			await tick()
+
+			expect(mockDockerService.pullImage).toHaveBeenCalledTimes(1)
+		})
+
+		it('lets an explicit action through and resets the backoff on success', async () => {
+			await tick()
+			mockDockerService.pullImage.mockResolvedValue(undefined)
+
+			await service.process({ edgeServerGuid: 'edge-1', type: 'service.action', payload: makeActionPayload() }, jest.fn())
+
+			expect(mockDockerService.pullImage).toHaveBeenCalledTimes(2)
+			expect(service['backoffs'].has('svc-guid')).toBe(false)
+		})
+	})
+
+	// ─── action error expiry ──────────────────────────────────────────────────
+
+	describe('action error expiry', () => {
+		beforeEach(async () => {
+			jest.useFakeTimers()
+			jest.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+			mockDockerService.pullImage.mockRejectedValue(new Error('pull access denied'))
+			await expect(service['handleServiceAction'](makeActionPayload())).rejects.toThrow('pull access denied')
+		})
+
+		afterEach(() => jest.useRealTimers())
+
+		it('keeps the error while a container started before the failure still runs', async () => {
+			jest.advanceTimersByTime(10_000)
+			mockDockerService.getDetailedStatus.mockResolvedValue({ ...makeDockerStatus('running'), uptimeSeconds: 3600 })
+
+			const result = await service['checkDockerStatus'](makeDockerItem())
+
+			expect(result.errorMessage).toBe('pull access denied')
+		})
+
+		it('clears the error once the container runs since a start after the failure', async () => {
+			jest.advanceTimersByTime(60_000)
+			mockDockerService.getDetailedStatus.mockResolvedValue({ ...makeDockerStatus('running'), uptimeSeconds: 30 })
+
+			const result = await service['checkDockerStatus'](makeDockerItem())
+
+			expect(result.errorMessage).toBeNull()
+			expect(service['lastActionErrors'].has('svc-guid')).toBe(false)
+		})
+
+		it('clears the error after its TTL', async () => {
+			jest.advanceTimersByTime(60 * 60_000 + 1)
+
+			const result = await service['checkDockerStatus'](makeDockerItem())
+
+			expect(result.errorMessage).toBeNull()
+		})
+
+		it('clears a Kubernetes error the same way, falling back to the pods\' problem', async () => {
+			jest.advanceTimersByTime(60_000)
+			mockKubernetesService.getDetailedStatus.mockResolvedValue({ ...makeK8sStatus('running'), uptimeSeconds: 30 })
+
+			const result = await service['checkKubernetesStatus'](makeK8sItem())
+
+			expect(result.errorMessage).toBeNull()
 		})
 	})
 
